@@ -1,0 +1,40 @@
+name: Scrape fuel prices
+
+on:
+  schedule:
+    # Každý deň o 7:00 UTC (= 9:00 CEST / 8:00 CET)
+    - cron: "0 7 * * *"
+  workflow_dispatch:   # Možnosť spustiť ručne z GitHub UI
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # Potrebné na git push
+
+    steps:
+      - name: Checkout repozitára
+        uses: actions/checkout@v4
+
+      - name: Nastavenie Pythonu
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Inštalácia závislostí
+        run: pip install requests beautifulsoup4
+
+      - name: Spustenie scrapera
+        run: python scraper/scrape.py
+
+      - name: Commit a push (ak sa data zmenili)
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/prices.json
+          if git diff --cached --quiet; then
+            echo "Žiadne zmeny, skip commit."
+          else
+            git commit -m "📊 Aktualizácia cien PHM $(date +%Y-%m-%d)"
+            git push
+          fi
