@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ceny PHM – Metro & Tesco Žilina</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;600&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:       #0d0f14;
+    --surface:  #161920;
+    --border:   #252830;
+    --text:     #e8eaf0;
+    --muted:    #6b7280;
+    --accent:   #f0c040;
+    --metro:    #e05c3a;
+    --tesco:    #3a8ee0;
+    --nat:      #a8d672;
+    --diesel:   #f0c040;
+    --radius:   10px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 28px 40px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    background: var(--surface);
+  }
+  .header-icon {
+    font-size: 2rem;
+    line-height: 1;
+  }
+  header h1 {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+  header p {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .badge {
+    margin-left: auto;
+    background: var(--border);
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    padding: 4px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+
+  /* ── Layout ── */
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 36px 24px 60px;
+  }
+
+  section { margin-bottom: 52px; }
+
+  .section-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── Summary Cards ── */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 40px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .card.metro-nat::before  { background: var(--metro); }
+  .card.metro-die::before  { background: color-mix(in srgb, var(--metro) 60%, var(--diesel)); }
+  .card.tesco-nat::before  { background: var(--tesco); }
+  .card.tesco-die::before  { background: color-mix(in srgb, var(--tesco) 60%, var(--diesel)); }
+
+  .card-label {
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+  .card-logo {
+    display: inline-block;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+  }
+  .card-logo.metro { background: #3a1a10; color: var(--metro); }
+  .card-logo.tesco { background: #102540; color: var(--tesco); }
+
+  .card-price {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.9rem;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -1px;
+  }
+  .card-unit {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-left: 4px;
+  }
+  .card-diff {
+    margin-top: 6px;
+    font-size: 0.75rem;
+    font-family: 'Space Mono', monospace;
+  }
+  .diff-up   { color: #f87171; }
+  .diff-down { color: #86efac; }
+  .diff-flat { color: var(--muted); }
+
+  /* ── Charts ── */
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 700px) { .chart-grid { grid-template-columns: 1fr; } }
+
+  .chart-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+  }
+  .chart-box h3 {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.8rem;
+    margin-bottom: 18px;
+    color: var(--text);
+  }
+  .chart-box canvas { max-height: 240px; }
+
+  /* ── Table ── */
+  .table-wrap {
+    overflow-x: auto;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+  }
+  thead tr { background: var(--surface); }
+  thead th {
+    padding: 13px 16px;
+    text-align: left;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: rgba(255,255,255,0.03); }
+  tbody td {
+    padding: 12px 16px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.82rem;
+    white-space: nowrap;
+  }
+  td.date-col { color: var(--muted); font-size: 0.78rem; }
+  td.metro-col { color: #f4a580; }
+  td.tesco-col { color: #80b4f4; }
+
+  /* ── Footer ── */
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.75rem;
+    padding: 24px;
+    border-top: 1px solid var(--border);
+  }
+  footer a { color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+
+  /* ── Loading ── */
+  #loading {
+    text-align: center;
+    padding: 80px 0;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+  .dot { animation: blink 1.2s infinite; }
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
+
+  #app { display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-icon">⛽</div>
+  <div>
+    <h1>Ceny pohonných hmôt — Žilina</h1>
+    <p>METRO Žilina · Tesco Žilina · aktualizované denne</p>
+  </div>
+  <div class="badge" id="last-updated">načítavam…</div>
+</header>
+
+<main>
+  <div id="loading">Načítavam dáta<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>
+
+  <div id="app">
+
+    <!-- Summary Cards -->
+    <section>
+      <div class="section-title">Aktuálne ceny</div>
+      <div class="cards">
+        <div class="card metro-nat">
+          <div class="card-logo metro">METRO</div>
+          <div class="card-label">Natural 95</div>
+          <div><span class="card-price" id="c-metro-nat">—</span><span class="card-unit">EUR/l</span></div>
+          <div class="card-diff" id="d-metro-nat"></div>
+        </div>
+        <div class="card metro-die">
+          <div class="card-logo metro">METRO</div>
+          <div class="card-label">Nafta diesel</div>
+          <div><span class="card-price" id="c-metro-die">—</span><span class="card-unit">EUR/l</span></div>
+          <div class="card-diff" id="d-metro-die"></div>
+        </div>
+        <div class="card tesco-nat">
+          <div class="card-logo tesco">TESCO</div>
+          <div class="card-label">Natural 95</div>
+          <div><span class="card-price" id="c-tesco-nat">—</span><span class="card-unit">EUR/l</span></div>
+          <div class="card-diff" id="d-tesco-nat"></div>
+        </div>
+        <div class="card tesco-die">
+          <div class="card-logo tesco">TESCO</div>
+          <div class="card-label">Diesel</div>
+          <div><span class="card-price" id="c-tesco-die">—</span><span class="card-unit">EUR/l</span></div>
+          <div class="card-diff" id="d-tesco-die"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Charts -->
+    <section>
+      <div class="section-title">Vývoj cien</div>
+      <div class="chart-grid">
+        <div class="chart-box">
+          <h3>⛽ Natural 95</h3>
+          <canvas id="chart-nat"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>🛢 Nafta / Diesel</h3>
+          <canvas id="chart-die"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Table -->
+    <section>
+      <div class="section-title">História záznamov</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Dátum</th>
+              <th>Metro N95</th>
+              <th>Metro Diesel</th>
+              <th>Tesco N95</th>
+              <th>Tesco Diesel</th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </div><!-- #app -->
+</main>
+
+<footer>
+  Dáta: <a href="https://www.metro.sk/predajne/zilina" target="_blank">METRO Žilina</a>
+  &amp; <a href="https://www.tesco.sk/help/pages/dokumenty/ostatne-dokumenty/aktualne-ceny-pohonnych-hmot" target="_blank">Tesco SK</a>
+  · Zdrojový kód: <a href="https://github.com" target="_blank">GitHub</a>
+</footer>
+
+<script>
+const DATA_URL = 'data/prices.json';
+
+const CHART_DEFAULTS = {
+  responsive: true,
+  maintainAspectRatio: true,
+  plugins: {
+    legend: {
+      labels: { color: '#9ca3af', font: { family: 'Space Mono', size: 10 }, boxWidth: 12 }
+    },
+    tooltip: {
+      backgroundColor: '#1e2128',
+      borderColor: '#252830',
+      borderWidth: 1,
+      titleColor: '#e8eaf0',
+      bodyColor: '#9ca3af',
+      titleFont: { family: 'Space Mono', size: 11 },
+      callbacks: {
+        label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(3)} EUR/l`
+      }
+    }
+  },
+  scales: {
+    x: {
+      ticks: { color: '#6b7280', font: { family: 'Space Mono', size: 9 }, maxRotation: 45 },
+      grid:  { color: '#1e2128' }
+    },
+    y: {
+      ticks: { color: '#6b7280', font: { family: 'Space Mono', size: 9 },
+               callback: v => v.toFixed(3) },
+      grid:  { color: '#1e2128' }
+    }
+  }
+};
+
+function fmt(v) {
+  return v != null ? v.toFixed(3) : '—';
+}
+
+function diffHTML(curr, prev) {
+  if (prev == null || curr == null) return '';
+  const d = curr - prev;
+  if (Math.abs(d) < 0.0005) return '<span class="diff-flat">→ bez zmeny</span>';
+  const cls  = d > 0 ? 'diff-up' : 'diff-down';
+  const icon = d > 0 ? '▲' : '▼';
+  return `<span class="${cls}">${icon} ${Math.abs(d).toFixed(3)}</span>`;
+}
+
+function makeChart(id, labels, ds1, ds2, c1, c2) {
+  const ctx = document.getElementById(id).getContext('2d');
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'METRO',
+          data: ds1,
+          borderColor: c1,
+          backgroundColor: c1 + '22',
+          borderWidth: 2,
+          pointRadius: ds1.length < 15 ? 4 : 2,
+          tension: 0.3,
+          fill: true,
+        },
+        {
+          label: 'TESCO',
+          data: ds2,
+          borderColor: c2,
+          backgroundColor: c2 + '22',
+          borderWidth: 2,
+          pointRadius: ds2.length < 15 ? 4 : 2,
+          tension: 0.3,
+          fill: true,
+        }
+      ]
+    },
+    options: {
+      ...CHART_DEFAULTS,
+      scales: {
+        ...CHART_DEFAULTS.scales,
+        y: {
+          ...CHART_DEFAULTS.scales.y,
+          min: (() => {
+            const all = [...ds1, ...ds2].filter(v => v != null);
+            return all.length ? Math.floor((Math.min(...all) - 0.05) * 20) / 20 : undefined;
+          })(),
+        }
+      }
+    }
+  });
+}
+
+async function init() {
+  const res     = await fetch(DATA_URL + '?t=' + Date.now());
+  const records = await res.json();
+
+  // Sort newest first for table, oldest first for charts
+  const byDate  = [...records].sort((a, b) => a.date.localeCompare(b.date));
+  const latest  = byDate[byDate.length - 1];
+  const prev    = byDate.length > 1 ? byDate[byDate.length - 2] : null;
+
+  // Cards
+  document.getElementById('c-metro-nat').textContent = fmt(latest.metro_natural95);
+  document.getElementById('c-metro-die').textContent = fmt(latest.metro_diesel);
+  document.getElementById('c-tesco-nat').textContent = fmt(latest.tesco_natural95);
+  document.getElementById('c-tesco-die').textContent = fmt(latest.tesco_diesel);
+
+  document.getElementById('d-metro-nat').innerHTML = diffHTML(latest.metro_natural95, prev?.metro_natural95);
+  document.getElementById('d-metro-die').innerHTML = diffHTML(latest.metro_diesel,    prev?.metro_diesel);
+  document.getElementById('d-tesco-nat').innerHTML = diffHTML(latest.tesco_natural95, prev?.tesco_natural95);
+  document.getElementById('d-tesco-die').innerHTML = diffHTML(latest.tesco_diesel,    prev?.tesco_diesel);
+
+  document.getElementById('last-updated').textContent = 'Aktualizované: ' + latest.date;
+
+  const labels = byDate.map(r => r.date);
+
+  // Charts
+  makeChart('chart-nat', labels,
+    byDate.map(r => r.metro_natural95),
+    byDate.map(r => r.tesco_natural95),
+    '#e05c3a', '#3a8ee0'
+  );
+  makeChart('chart-die', labels,
+    byDate.map(r => r.metro_diesel),
+    byDate.map(r => r.tesco_diesel),
+    '#e05c3a', '#3a8ee0'
+  );
+
+  // Table — newest first
+  const tbody = document.getElementById('table-body');
+  [...byDate].reverse().forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="date-col">${r.date}</td>
+      <td class="metro-col">${fmt(r.metro_natural95)}</td>
+      <td class="metro-col">${fmt(r.metro_diesel)}</td>
+      <td class="tesco-col">${fmt(r.tesco_natural95)}</td>
+      <td class="tesco-col">${fmt(r.tesco_diesel)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('app').style.display     = 'block';
+}
+
+init().catch(err => {
+  document.getElementById('loading').textContent = 'Chyba: ' + err.message;
+});
+</script>
+</body>
+</html>
